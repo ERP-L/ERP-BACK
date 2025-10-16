@@ -3,6 +3,7 @@ package com.app.erp.inventory.interfaces.rest.resources;
 import com.app.erp.inventory.application.internal.commandservices.CreateWarehouseService;
 import com.app.erp.inventory.application.internal.messages.commands.CreateWarehouseCommand;
 import com.app.erp.inventory.application.internal.messages.results.CreateWarehouseResult;
+import com.app.erp.inventory.application.internal.queryservices.ListWarehousesService;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateWarehouseRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.WarehouseResponse;
 import com.app.erp.inventory.interfaces.rest.resources.transformers.WarehouseApiTransformer;
@@ -21,13 +22,16 @@ public class WarehousesController {
     private final CreateWarehouseService service;
     private final WarehouseApiTransformer transformer;
     private final AuthContextResolver authResolver;
+    private final ListWarehousesService listWarehousesService;
 
     public WarehousesController(CreateWarehouseService service,
                                 WarehouseApiTransformer transformer,
-                                AuthContextResolver authResolver) {
+                                AuthContextResolver authResolver,
+                                ListWarehousesService listWarehousesService) {
         this.service = service;
         this.transformer = transformer;
         this.authResolver = authResolver;
+        this.listWarehousesService = listWarehousesService;
     }
 
     @PostMapping
@@ -39,5 +43,16 @@ public class WarehousesController {
         CreateWarehouseCommand cmd = transformer.toCommand(request);
         CreateWarehouseResult res = service.handle(cmd, auth);
         return transformer.toResponse(res);
+    }
+
+    @GetMapping
+    public java.util.List<com.app.erp.inventory.interfaces.rest.contracts.WarehouseResponse> list(
+            @RequestParam(name = "onlyActive", required = false) Boolean onlyActive,
+            @RequestParam(name = "branchId", required = false) Integer branchId,
+            Authentication authentication) {
+
+        AuthContext auth = authResolver.resolve(authentication);
+        var rows = listWarehousesService.handle(auth, onlyActive, branchId);
+        return rows.stream().map(transformer::toResponse).toList();
     }
 }
