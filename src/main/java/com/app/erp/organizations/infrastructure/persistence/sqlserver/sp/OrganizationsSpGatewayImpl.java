@@ -12,6 +12,8 @@ import java.sql.*;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Adapter JDBC que invoca [core].[sp_RegisterBranch] y luego lee la fila creada
@@ -116,5 +118,55 @@ public class OrganizationsSpGatewayImpl implements OrganizationsCommandGateway, 
     public boolean isCompanyActive(int companyId) {
         // Implementar cuando actives organizations.rules.require-company-active=true
         return true;
+    }
+
+    @Override
+    public List<Branch> listBranchesByCompany(int companyId, Boolean onlyActive) {
+        try (Connection con = dataSource.getConnection()) {
+            return callSpListByCompany(con, companyId, onlyActive);
+        } catch (SQLException ex) {
+            throw new ApplicationException("Error consultando Branches vía SP", ex);
+        }
+    }
+
+    private List<Branch> callSpListByCompany(Connection con, int companyId, Boolean onlyActive) throws SQLException {
+        final String call = "{ call [core].[usp_Branch_ListByCompany](?, ?) }";
+        try (CallableStatement cs = con.prepareCall(call)) {
+            cs.setInt(1, companyId);
+            if (onlyActive == null) cs.setNull(2, Types.BIT);
+            else cs.setBoolean(2, onlyActive);
+
+            boolean hasRs = cs.execute();
+            List<Branch> out = new ArrayList<>();
+            if (hasRs) {
+                try (ResultSet rs = cs.getResultSet()) {
+                    while (rs.next()) {
+                        int branchId = rs.getInt("BranchID");
+                        int compId = rs.getInt("CompanyID");
+                        String name = rs.getString("Name");
+                        String address = rs.getString("Address");
+                        String ubigeo = rs.getString("UbigeoID");
+                        boolean isActive = rs.getBoolean("IsActive");
+
+                        Timestamp createdTs = rs.getTimestamp("CreatedUtc");
+                        Timestamp updatedTs = rs.getTimestamp("UpdatedUtc");
+                        OffsetDateTime created = createdTs != null ? createdTs.toInstant().atOffset(ZoneOffset.UTC) : null;
+                        OffsetDateTime updated = updatedTs != null ? updatedTs.toInstant().atOffset(ZoneOffset.UTC) : null;
+
+                        out.add(Branch.fromPersistence(
+                                branchId,
+                                compId,
+                                new BranchName(name),
+                                address != null ? new AddressLine(address) : null,
+                                new UbigeoId(ubigeo),
+                                isActive,
+                                created,
+                                updated
+                        ));
+                    }
+                }
+            }
+            return out;
+        }
     }
 }

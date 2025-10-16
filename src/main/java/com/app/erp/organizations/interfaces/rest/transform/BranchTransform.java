@@ -7,6 +7,8 @@ import com.app.erp.organizations.interfaces.rest.resources.BranchResponse;
 import com.app.erp.organizations.interfaces.rest.resources.CreateBranchRequest;
 import com.app.erp.shared.security.AuthContext;
 import org.springframework.stereotype.Component;
+import com.app.erp.organizations.domain.Branch;
+import com.app.erp.organizations.interfaces.rest.resources.BranchResponse;
 
 @Component
 public class BranchTransform {
@@ -31,6 +33,19 @@ public class BranchTransform {
                 result.ubigeoId(),
                 result.isActive(),
                 result.createdUtc()
+        );
+    }
+
+    /** Mapea Branch (dominio) a la response pública. */
+    public BranchResponse toResponse(Branch b) {
+        return new BranchResponse(
+                b.getBranchId(),
+                b.getCompanyId(),
+                b.getName().value(),
+                b.getAddress() != null ? b.getAddress().value() : null,
+                b.getUbigeoId().value(),
+                b.isActive(),
+                b.getCreatedUtc()
         );
     }
 }

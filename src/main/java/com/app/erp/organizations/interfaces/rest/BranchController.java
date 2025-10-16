@@ -17,6 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @SecurityRequirement(name = "bearer-jwt")
 @RestController
@@ -26,13 +28,16 @@ public class BranchController {
     private final RegisterBranchHandler handler;
     private final AuthContextResolver authResolver;
     private final BranchTransform transform;
+    private final com.app.erp.organizations.application.usecase.ListBranchesHandler listHandler;
 
     public BranchController(RegisterBranchHandler handler,
                             AuthContextResolver authResolver,
-                            BranchTransform transform) {
+                            BranchTransform transform,
+                            com.app.erp.organizations.application.usecase.ListBranchesHandler listHandler) {
         this.handler = handler;
         this.authResolver = authResolver;
         this.transform = transform;
+        this.listHandler = listHandler;
     }
 
 
@@ -49,5 +54,13 @@ public class BranchController {
 
         URI location = URI.create("/org/branches/" + result.branchId());
         return ResponseEntity.created(location).body(transform.toResponse(result));
+    }
+
+    @GetMapping
+    public List<BranchResponse> list(@RequestParam(name = "onlyActive", required = false) Boolean onlyActive,
+                                     Authentication authentication) {
+        AuthContext ctx = authResolver.resolve(authentication);
+        var branches = listHandler.handle(ctx, onlyActive);
+        return branches.stream().map(transform::toResponse).collect(Collectors.toList());
     }
 }
