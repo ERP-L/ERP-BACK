@@ -76,6 +76,23 @@ public class InventoryAuthorizationPolicy {
         }
     }
 
+    public void checkCreateCategory(com.app.erp.inventory.application.internal.messages.commands.CreateProductCategoryCommand cmd, AuthContext auth) {
+        // Debe existir compañía en el token
+        if (auth.companyId() == null) throw new com.app.erp.shared.exceptions.AuthorizationException("El token no tiene compañía asociada.");
+
+        // RBAC: reuse create-product roles for now (or configure new property)
+        if (!rbac.hasAnyRole(auth.rolesCompany(), allowedRolesCreateProduct)) {
+            throw new com.app.erp.shared.exceptions.AuthorizationException("No tienes permisos para crear categorías.");
+        }
+
+        // Si viene parentCategoryId, validar pertenencia a la compañía
+        if (cmd.getParentCategoryId() != null) {
+            Integer pc = inventoryReadPort.getCategoryCompanyId(cmd.getParentCategoryId());
+            if (pc == null) throw new com.app.erp.shared.exceptions.NotFoundException("ParentCategoryID no existe.");
+            if (!pc.equals(auth.companyId())) throw new com.app.erp.shared.exceptions.AuthorizationException("ParentCategoryID no pertenece a tu compañía.");
+        }
+    }
+
     private static Set<Integer> parseCsvToIntSet(String csv) {
         return Stream.of(csv.split(","))
                 .map(String::trim)
