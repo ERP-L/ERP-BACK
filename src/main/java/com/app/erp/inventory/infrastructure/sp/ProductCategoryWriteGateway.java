@@ -23,6 +23,50 @@ public class ProductCategoryWriteGateway implements ProductCategoryWritePort {
         this.jdbc = jdbc;
     }
 
+    @Override
+    public com.app.erp.inventory.application.internal.messages.results.ReparentProductCategoryResult reparentProductCategory(int companyId, int categoryId, Integer newParentCategoryId) {
+        final String call = "{ call [inventory].[usp_ProductCategory_Reparent](?, ?, ?) }";
+        try (java.sql.Connection con = jdbc.getDataSource().getConnection();
+             java.sql.CallableStatement cs = con.prepareCall(call)) {
+
+            cs.setInt(1, companyId);
+            cs.setInt(2, categoryId);
+            if (newParentCategoryId == null) cs.setNull(3, Types.INTEGER);
+            else cs.setInt(3, newParentCategoryId);
+
+            boolean hasRs = cs.execute();
+            if (hasRs) try (java.sql.ResultSet rs = cs.getResultSet()) {
+                if (rs.next()) {
+                    int cid = rs.getInt("CategoryID");
+                    String name = rs.getString("CategoryName");
+                    Integer parent = rs.getObject("ParentCategoryID") == null ? null : rs.getInt("ParentCategoryID");
+                    boolean active = rs.getBoolean("IsActive");
+                    java.sql.Timestamp createdTs = rs.getTimestamp("CreatedUtc");
+                    java.time.OffsetDateTime created = createdTs == null ? null : createdTs.toInstant().atOffset(java.time.ZoneOffset.UTC);
+                    int compId = rs.getInt("CompanyID");
+
+                    var out = new com.app.erp.inventory.application.internal.messages.results.ReparentProductCategoryResult();
+                    out.setCategoryId(cid);
+                    out.setCategoryName(name);
+                    out.setParentCategoryId(parent);
+                    out.setIsActive(active);
+                    out.setCreatedUtc(created);
+                    out.setCompanyId(compId);
+                    return out;
+                }
+            }
+            throw new ApplicationException("SP did not return updated category row");
+        } catch (java.sql.SQLException ex) {
+            int code = ex.getErrorCode();
+            String msg = ex.getMessage();
+            if (code == 50010) throw new com.app.erp.shared.exceptions.NotFoundException(msg);
+            if (code == 50012) throw new com.app.erp.shared.exceptions.NotFoundException(msg);
+            if (code == 50011) throw new com.app.erp.shared.exceptions.ApplicationException(msg);
+            if (code == 50013) throw new com.app.erp.shared.exceptions.ApplicationException(msg);
+            throw new ApplicationException("Error reparenting product category", ex);
+        }
+    }
+
     @PostConstruct
     void init() {
         this.createCall = new SimpleJdbcCall(this.jdbc)

@@ -21,4 +21,16 @@ public class ProductCategoryApiTransformer {
     public ProductCategoryResponse toResponse(CreateProductCategoryResult res) {
         return new ProductCategoryResponse(res.getCategoryId());
     }
+
+    public com.app.erp.inventory.interfaces.rest.contracts.ReparentProductCategoryResponse toReparentResponse(
+            com.app.erp.inventory.application.internal.messages.results.ReparentProductCategoryResult res) {
+        return new com.app.erp.inventory.interfaces.rest.contracts.ReparentProductCategoryResponse(
+                res.getCategoryId(),
+                res.getCategoryName(),
+                res.getParentCategoryId(),
+                res.getIsActive(),
+                res.getCreatedUtc(),
+                res.getCompanyId()
+        );
+    }
 }
