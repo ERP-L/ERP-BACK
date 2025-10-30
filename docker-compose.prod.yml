@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  erp-api:
+    image: erp-api:latest
+    container_name: erp-backend-prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      
+      # Datasource (matches application.properties)
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.microsoft.sqlserver.jdbc.SQLServerDriver
+      
+      # JPA / Hibernate
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.SQLServerDialect
+      
+      # JWT (matches application.properties)
+      SECURITY_JWT_SECRET: ${SECURITY_JWT_SECRET}
+      SECURITY_JWT_ISSUER: ${SECURITY_JWT_ISSUER:-iam-service}
+      SECURITY_JWT_EXPIRATION_SECONDS: ${SECURITY_JWT_EXPIRATION_SECONDS:-1800}
+      
+      # Flyway (optional)
+      FLYWAY_ENABLED: ${FLYWAY_ENABLED:-false}
+      
+      # Server
+      PORT: ${PORT:-8080}
+      
+      # JVM Options
+      JAVA_OPTS: ${JAVA_OPTS:--Xmx512m -Xms256m}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
