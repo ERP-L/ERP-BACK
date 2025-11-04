@@ -1,7 +1,7 @@
 package com.app.erp.inventory.interfaces.rest.resources.transformers;
 
-import com.app.erp.inventory.application.internal.messages.commands.CreateWarehouseCommand;
-import com.app.erp.inventory.application.internal.messages.results.CreateWarehouseResult;
+import com.app.erp.inventory.application.dtos.commands.CreateWarehouseCommand;
+import com.app.erp.inventory.application.dtos.results.CreateWarehouseResult;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateWarehouseRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.WarehouseResponse;
 import com.app.erp.shared.exceptions.InvalidInputException;

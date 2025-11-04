@@ -1,9 +1,9 @@
 package com.app.erp.inventory.interfaces.rest.resources;
 
-import com.app.erp.inventory.application.internal.commandservices.CreateWarehouseService;
-import com.app.erp.inventory.application.internal.messages.commands.CreateWarehouseCommand;
-import com.app.erp.inventory.application.internal.messages.results.CreateWarehouseResult;
-import com.app.erp.inventory.application.internal.queryservices.ListWarehousesService;
+import com.app.erp.inventory.application.usecase.CreateWarehouseHandler;
+import com.app.erp.inventory.application.dtos.commands.CreateWarehouseCommand;
+import com.app.erp.inventory.application.dtos.results.CreateWarehouseResult;
+import com.app.erp.inventory.application.usecase.ListWarehousesHandler;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateWarehouseRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.WarehouseResponse;
 import com.app.erp.inventory.interfaces.rest.resources.transformers.WarehouseApiTransformer;
@@ -19,19 +19,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/inventory/warehouses")
 public class WarehousesController {
 
-    private final CreateWarehouseService service;
+    private final CreateWarehouseHandler service;
     private final WarehouseApiTransformer transformer;
     private final AuthContextResolver authResolver;
-    private final ListWarehousesService listWarehousesService;
+    private final ListWarehousesHandler listService;
 
-    public WarehousesController(CreateWarehouseService service,
+    public WarehousesController(CreateWarehouseHandler service,
                                 WarehouseApiTransformer transformer,
                                 AuthContextResolver authResolver,
-                                ListWarehousesService listWarehousesService) {
+                                ListWarehousesHandler listService) {
         this.service = service;
         this.transformer = transformer;
         this.authResolver = authResolver;
-        this.listWarehousesService = listWarehousesService;
+        this.listService = listService;
     }
 
     @PostMapping
@@ -52,7 +52,7 @@ public class WarehousesController {
             Authentication authentication) {
 
         AuthContext auth = authResolver.resolve(authentication);
-        var rows = listWarehousesService.handle(auth, onlyActive, branchId);
+        var rows = this.listService.handle(auth, onlyActive, branchId);
         return rows.stream().map(transformer::toResponse).toList();
     }
 }

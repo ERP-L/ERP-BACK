@@ -1,10 +1,8 @@
 package com.app.erp.inventory.interfaces.rest.resources;
-
-
-import com.app.erp.inventory.application.internal.commandservices.CreateProductService;
-import com.app.erp.inventory.application.internal.messages.commands.CreateProductCommand;
-import com.app.erp.inventory.application.internal.messages.results.CreateProductResult;
-import com.app.erp.inventory.application.internal.queryservices.ListProductsService;
+import com.app.erp.inventory.application.usecase.CreateProductHandler;
+import com.app.erp.inventory.application.dtos.commands.CreateProductCommand;
+import com.app.erp.inventory.application.dtos.results.CreateProductResult;
+import com.app.erp.inventory.application.usecase.ListProductsHandler;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateProductRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.ProductResponse;
 import com.app.erp.inventory.interfaces.rest.resources.transformers.ProductApiTransformer;
@@ -20,15 +18,15 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/inventory/products")
 public class ProductsController {
 
-    private final CreateProductService service;
+    private final CreateProductHandler service;
     private final ProductApiTransformer transformer;
     private final AuthContextResolver authResolver;
-    private final ListProductsService listService;
+    private final ListProductsHandler listService;
 
-    public ProductsController(CreateProductService service,
+    public ProductsController(CreateProductHandler service,
                               ProductApiTransformer transformer,
                               AuthContextResolver authResolver,
-                              ListProductsService listService) {
+                              ListProductsHandler listService) {
         this.service = service;
         this.transformer = transformer;
         this.authResolver = authResolver;

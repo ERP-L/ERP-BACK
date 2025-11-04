@@ -1,8 +1,8 @@
 package com.app.erp.inventory.interfaces.rest.resources;
 
-import com.app.erp.inventory.application.internal.commandservices.CreateProductCategoryService;
-import com.app.erp.inventory.application.internal.commandservices.ReparentProductCategoryService;
-import com.app.erp.inventory.application.internal.queryservices.ListProductCategoriesService;
+import com.app.erp.inventory.application.usecase.CreateProductCategoryHandler;
+import com.app.erp.inventory.application.usecase.ReparentProductCategoryHandler;
+import com.app.erp.inventory.application.usecase.ListProductCategoriesHandler;
 import com.app.erp.inventory.interfaces.rest.contracts.CategoryTreeResponse;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateProductCategoryRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.ProductCategoryResponse;
@@ -21,17 +21,17 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/inventory/categories")
 public class ProductCategoriesController {
 
-    private final CreateProductCategoryService service;
+    private final CreateProductCategoryHandler service;
     private final ProductCategoryApiTransformer transformer;
     private final AuthContextResolver authResolver;
-    private final ReparentProductCategoryService reparentService;
-    private final ListProductCategoriesService listService;
+    private final ReparentProductCategoryHandler reparentService;
+    private final ListProductCategoriesHandler listService;
 
-    public ProductCategoriesController(CreateProductCategoryService service,
+    public ProductCategoriesController(CreateProductCategoryHandler service,
                                        ProductCategoryApiTransformer transformer,
                                        AuthContextResolver authResolver,
-                                       ReparentProductCategoryService reparentService,
-                                       ListProductCategoriesService listService) {
+                                       ReparentProductCategoryHandler reparentService,
+                                       ListProductCategoriesHandler listService) {
         this.service = service;
         this.transformer = transformer;
         this.authResolver = authResolver;
@@ -56,7 +56,7 @@ public class ProductCategoriesController {
             Authentication authentication) {
 
         AuthContext auth = authResolver.resolve(authentication);
-        var cmd = new com.app.erp.inventory.application.internal.messages.commands.ReparentProductCategoryCommand(categoryId, req.getNewParentCategoryId());
+    var cmd = new com.app.erp.inventory.application.dtos.commands.ReparentProductCategoryCommand(categoryId, req.getNewParentCategoryId());
         var res = reparentService.handle(cmd, auth);
         return transformer.toReparentResponse(res);
     }

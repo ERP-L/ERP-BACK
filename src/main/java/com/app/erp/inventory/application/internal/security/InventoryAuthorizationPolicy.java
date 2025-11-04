@@ -1,9 +1,9 @@
 package com.app.erp.inventory.application.internal.security;
 
-import com.app.erp.inventory.application.internal.messages.commands.CreateProductCommand;
-import com.app.erp.inventory.application.internal.messages.commands.CreateWarehouseCommand;
-import com.app.erp.inventory.application.internal.port.InventoryReadPort;
-import com.app.erp.inventory.application.internal.port.OrganizationsReadPort;
+import com.app.erp.inventory.application.dtos.commands.CreateProductCommand;
+import com.app.erp.inventory.application.dtos.commands.CreateWarehouseCommand;
+import com.app.erp.inventory.application.port.InventoryReadPort;
+import com.app.erp.inventory.application.port.OrganizationsReadPort;
 import com.app.erp.shared.exceptions.AuthorizationException;
 import com.app.erp.shared.exceptions.NotFoundException;
 import com.app.erp.shared.security.AuthContext;
@@ -76,7 +76,7 @@ public class InventoryAuthorizationPolicy {
         }
     }
 
-    public void checkCreateCategory(com.app.erp.inventory.application.internal.messages.commands.CreateProductCategoryCommand cmd, AuthContext auth) {
+    public void checkCreateCategory(com.app.erp.inventory.application.dtos.commands.CreateProductCategoryCommand cmd, AuthContext auth) {
         // Debe existir compañía en el token
         if (auth.companyId() == null) throw new com.app.erp.shared.exceptions.AuthorizationException("El token no tiene compañía asociada.");
 

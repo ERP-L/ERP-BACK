@@ -1,7 +1,7 @@
 package com.app.erp.inventory.interfaces.rest.transformers;
 
-import com.app.erp.inventory.application.internal.messages.commands.CreateProductCategoryCommand;
-import com.app.erp.inventory.application.internal.messages.results.CreateProductCategoryResult;
+import com.app.erp.inventory.application.dtos.commands.CreateProductCategoryCommand;
+import com.app.erp.inventory.application.dtos.results.CreateProductCategoryResult;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateProductCategoryRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.ProductCategoryResponse;
 import org.springframework.stereotype.Component;
@@ -23,7 +23,7 @@ public class ProductCategoryApiTransformer {
     }
 
     public com.app.erp.inventory.interfaces.rest.contracts.ReparentProductCategoryResponse toReparentResponse(
-            com.app.erp.inventory.application.internal.messages.results.ReparentProductCategoryResult res) {
+            com.app.erp.inventory.application.dtos.results.ReparentProductCategoryResult res) {
         return new com.app.erp.inventory.interfaces.rest.contracts.ReparentProductCategoryResponse(
                 res.getCategoryId(),
                 res.getCategoryName(),
