@@ -92,6 +92,10 @@ public class GlobalRestExceptionHandler {
         if (sqlEx != null) {
             details.put("dbCode", sqlEx.getErrorCode());
             details.put("sqlState", sqlEx.getSQLState());
+            // Mapeo de error específico lanzado desde SP cuando warehouse no pertenece a la compañía
+            if (sqlEx.getErrorCode() == 61001) {
+                return build(HttpStatus.NOT_FOUND, sqlEx.getMessage(), req.getRequestURI(), details);
+            }
         }
         return build(HttpStatus.INTERNAL_SERVER_ERROR, message, req.getRequestURI(), details);
     }
