@@ -119,8 +119,29 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
             if (serialId != null) cs.setInt(4, serialId); else cs.setNull(4, Types.INTEGER);
             cs.setString(5, locationCode);
             cs.setString(6, notes);
-            cs.execute();
+            try {
+                cs.execute();
+            } catch (SQLException ex) {
+                // Ignore duplicate-key / unique constraint errors which can occur in concurrent creates
+                if (isDuplicateConstraint(ex)) {
+                    return;
+                }
+                throw ex;
+            }
         }
+    }
+
+    // Detect SQL Server duplicate-key / constraint violation (2627/2601) or SQLState class 23
+    private boolean isDuplicateConstraint(SQLException ex) {
+        SQLException e = ex;
+        while (e != null) {
+            int code = e.getErrorCode();
+            String sqlState = e.getSQLState();
+            if (code == 2627 || code == 2601) return true;
+            if (sqlState != null && sqlState.startsWith("23")) return true;
+            e = e.getNextException();
+        }
+        return false;
     }
 
     private SQLServerDataTable buildLineTvp(List<InventoryLineCommand> lines) throws SQLException {
@@ -133,6 +154,8 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
         tvp.addColumnMetadata("Notes", java.sql.Types.NVARCHAR);
         for (InventoryLineCommand l : lines) {
             Object q = l.getQuantity() != null ? l.getQuantity() : null;
+            // Nota: ya no incluimos LocationCode en el TVP. La creación de ubicaciones se realiza
+            // exclusivamente mediante callCreateItemLocation cuando command.isAutoCreateLocation() es true.
             tvp.addRow(l.getProductId(), l.getBatchId(), l.getSerialId(), q, l.getUnitCost(), l.getNotes());
         }
         return tvp;

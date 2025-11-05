@@ -6,6 +6,8 @@ import com.app.erp.inventory.application.usecase.PostInventoryMovementHandler;
 import com.app.erp.inventory.application.usecase.ListProductsInWarehouseHandler;
 import com.app.erp.inventory.application.usecase.GetProductDetailsInWarehouseHandler;
 import com.app.erp.inventory.application.usecase.GetRecentMovementsHandler;
+import com.app.erp.inventory.application.usecase.CreateLocationHandler;
+import com.app.erp.inventory.application.usecase.ListLocationsHandler;
 import com.app.erp.inventory.application.dtos.results.RecentMovementResult;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDate;
@@ -18,6 +20,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.app.erp.inventory.interfaces.rest.contracts.CreateLocationRequest;
+import com.app.erp.inventory.interfaces.rest.contracts.LocationResponse;
+import com.app.erp.inventory.interfaces.rest.resources.transformers.LocationApiTransformer;
+import java.util.stream.Collectors;
 
 @SecurityRequirement(name = "bearer-jwt")
 @RestController
@@ -28,18 +34,27 @@ public class InventoryController {
     private final ListProductsInWarehouseHandler listHandler;
     private final GetProductDetailsInWarehouseHandler productDetailsHandler;
     private final GetRecentMovementsHandler recentHandler;
+    private final CreateLocationHandler createLocationHandler;
+    private final ListLocationsHandler listLocationsHandler;
     private final AuthContextResolver authContextResolver;
+    private final LocationApiTransformer locationApiTransformer;
 
     public InventoryController(PostInventoryMovementHandler handler,
                                ListProductsInWarehouseHandler listHandler,
                                GetProductDetailsInWarehouseHandler productDetailsHandler,
                                GetRecentMovementsHandler recentHandler,
-                               AuthContextResolver authContextResolver) {
+                               AuthContextResolver authContextResolver,
+                               CreateLocationHandler createLocationHandler,
+                               ListLocationsHandler listLocationsHandler,
+                               LocationApiTransformer locationApiTransformer) {
         this.handler = handler;
         this.listHandler = listHandler;
         this.productDetailsHandler = productDetailsHandler;
         this.recentHandler = recentHandler;
         this.authContextResolver = authContextResolver;
+        this.createLocationHandler = createLocationHandler;
+        this.listLocationsHandler = listLocationsHandler;
+        this.locationApiTransformer = locationApiTransformer;
     }
 
     @PostMapping("/movements")
@@ -121,5 +136,30 @@ public class InventoryController {
     ) {
         AuthContext auth = authContextResolver.resolve(authentication);
         return recentHandler.handle(auth, warehouseId, search, dateFrom, dateTo, type, page, size);
+    }
+
+    @PostMapping("/warehouses/{warehouseId}/locations")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LocationResponse createLocation(
+            Authentication authentication,
+            @PathVariable Integer warehouseId,
+            @RequestBody CreateLocationRequest req
+    ) {
+        AuthContext auth = authContextResolver.resolve(authentication);
+        com.app.erp.inventory.application.dtos.commands.CreateLocationCommand cmd = locationApiTransformer.toCommand(req);
+        cmd.setWarehouseId(warehouseId);
+        com.app.erp.inventory.application.dtos.results.CreateLocationResult res = createLocationHandler.handle(cmd, auth);
+        return locationApiTransformer.toResponse(res);
+    }
+
+    @GetMapping("/warehouses/{warehouseId}/locations")
+    public java.util.List<LocationResponse> listLocations(
+            Authentication authentication,
+            @PathVariable Integer warehouseId,
+            @RequestParam(required = false) Boolean onlyAllowStock
+    ) {
+        AuthContext auth = authContextResolver.resolve(authentication);
+        java.util.List<com.app.erp.inventory.application.dtos.results.LocationResult> list = listLocationsHandler.handle(auth, warehouseId, onlyAllowStock);
+        return list.stream().map(locationApiTransformer::toResponse).collect(Collectors.toList());
     }
 }

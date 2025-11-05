@@ -8,6 +8,8 @@ import com.app.erp.inventory.application.dtos.commands.InventoryLineCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 
@@ -33,6 +35,44 @@ public class PostInventoryMovementHandler {
 
         String movement = command.getMovementType().toUpperCase();
         String lineMode = command.getLineMode().toUpperCase();
+
+        // Special rule: TRF + SERIAL or TRF + BATCH requires an explicit locationCode per line so
+        // a new ItemLocation can be created in the destination warehouse.
+        if ("TRF".equals(movement) && ("SERIAL".equals(lineMode) || "BATCH".equals(lineMode))) {
+            // Ensure the repository will attempt to create locations
+            if (!command.isAutoCreateLocation()) command.setAutoCreateLocation(true);
+            for (InventoryLineCommand l : command.getLines()) {
+                if (l.getLocationCode() == null || l.getLocationCode().trim().isEmpty()) {
+                    throw new IllegalArgumentException("locationCode required for TRF when lineMode=SERIAL or BATCH (one locationCode per line is required)");
+                }
+            }
+        }
+
+        // New rule: NORMAL mode requires explicit locationCode for IN and TRF (we always need to know where
+        // the items are stored). Force autoCreateLocation so repository will create ItemLocation entries.
+        if ("NORMAL".equals(lineMode) && ("IN".equals(movement) || "TRF".equals(movement))) {
+            if (!command.isAutoCreateLocation()) command.setAutoCreateLocation(true);
+            for (InventoryLineCommand l : command.getLines()) {
+                if (l.getLocationCode() == null || l.getLocationCode().trim().isEmpty()) {
+                    throw new IllegalArgumentException("locationCode required for IN/TRF when lineMode=NORMAL (one locationCode per line is required)");
+                }
+            }
+        }
+
+        // Force autoCreateLocation when auto-creating batch/serial, and ensure locationCode is not blank when required
+        boolean needsLocation = command.isAutoCreateLocation() || command.isAutoCreateBatch() || command.isAutoCreateSerial();
+        if (needsLocation && !command.isAutoCreateLocation()) {
+            command.setAutoCreateLocation(true);
+        }
+        if (command.isAutoCreateLocation()) {
+            for (InventoryLineCommand l : command.getLines()) {
+                // For TRF+SERIAL or TRF+BATCH we already validated presence of locationCode above; keep the provided code
+                if ("TRF".equals(movement) && ("SERIAL".equals(lineMode) || "BATCH".equals(lineMode))) continue;
+                if (l.getLocationCode() == null || l.getLocationCode().trim().isEmpty()) {
+                    l.setLocationCode(generateDefaultLocationCode(command.getToWarehouseId(), movement));
+                }
+            }
+        }
 
         // Header shape checks per movement type
         switch (movement) {
@@ -93,7 +133,32 @@ public class PostInventoryMovementHandler {
                 throw new IllegalArgumentException("lineMode!=SERIAL but serial lines present");
         }
 
+        // New: validations for BATCH mode on OUT/TRF/ADJ
+        if ("BATCH".equals(lineMode)) {
+            for (InventoryLineCommand l : lines) {
+                boolean hasBatchId = l.getBatchId() != null;
+                boolean hasBatchNumber = l.getBatchNumber() != null && !l.getBatchNumber().trim().isEmpty();
+                // For movements where we are removing/moving stock, prefer an existing BatchID.
+                if ("OUT".equals(movement) || "TRF".equals(movement) || "ADJ".equals(movement)) {
+                    if (!hasBatchId) {
+                        // allow when client explicitly requests auto-creation and provides a batchNumber
+                        if (!(command.isAutoCreateBatch() && hasBatchNumber)) {
+                            throw new IllegalArgumentException("batchId required for movementType OUT/TRF/ADJ when lineMode=BATCH (or provide batchNumber with autoCreateBatch=true)");
+                        }
+                    }
+                }
+            }
+        }
+
         // Delegate to repository
         return writePort.postMovement(command, authContext);
+    }
+
+    private String generateDefaultLocationCode(Integer toWarehouseId, String movement) {
+        // Deterministic, human-readable fallback location code
+        String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        String wh = toWarehouseId == null ? "X" : toWarehouseId.toString();
+        String mv = (movement == null || movement.isBlank()) ? "MV" : movement.toUpperCase();
+        return "AUTO-" + mv + "-" + wh + "-" + ts;
     }
 }
