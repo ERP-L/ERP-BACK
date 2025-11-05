@@ -5,6 +5,10 @@ import com.app.erp.inventory.application.dtos.results.PostInventoryMovementResul
 import com.app.erp.inventory.application.usecase.PostInventoryMovementHandler;
 import com.app.erp.inventory.application.usecase.ListProductsInWarehouseHandler;
 import com.app.erp.inventory.application.usecase.GetProductDetailsInWarehouseHandler;
+import com.app.erp.inventory.application.usecase.GetRecentMovementsHandler;
+import com.app.erp.inventory.application.dtos.results.RecentMovementResult;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 import com.app.erp.inventory.application.dtos.results.ProductDetailsResult;
 import com.app.erp.inventory.interfaces.rest.contracts.InventoryProductResponse;
 import java.util.List;
@@ -23,15 +27,18 @@ public class InventoryController {
     private final PostInventoryMovementHandler handler;
     private final ListProductsInWarehouseHandler listHandler;
     private final GetProductDetailsInWarehouseHandler productDetailsHandler;
+    private final GetRecentMovementsHandler recentHandler;
     private final AuthContextResolver authContextResolver;
 
     public InventoryController(PostInventoryMovementHandler handler,
                                ListProductsInWarehouseHandler listHandler,
                                GetProductDetailsInWarehouseHandler productDetailsHandler,
+                               GetRecentMovementsHandler recentHandler,
                                AuthContextResolver authContextResolver) {
         this.handler = handler;
         this.listHandler = listHandler;
         this.productDetailsHandler = productDetailsHandler;
+        this.recentHandler = recentHandler;
         this.authContextResolver = authContextResolver;
     }
 
@@ -99,5 +106,20 @@ public class InventoryController {
         }
 
         return resp;
+    }
+
+    @GetMapping("/movements/recent")
+    public java.util.List<RecentMovementResult> getRecentMovements(
+            Authentication authentication,
+            @RequestParam(required = false) Integer warehouseId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size
+    ) {
+        AuthContext auth = authContextResolver.resolve(authentication);
+        return recentHandler.handle(auth, warehouseId, search, dateFrom, dateTo, type, page, size);
     }
 }

@@ -16,9 +16,13 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.time.OffsetDateTime;
+import java.time.LocalDate;
+import java.sql.Date;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.sql.SQLException;
+import com.app.erp.inventory.application.dtos.results.RecentMovementResult;
 
 @Primary
 @Repository
@@ -28,6 +32,67 @@ public class InventoryReadRepositorySp implements InventoryReadPort {
 
     public InventoryReadRepositorySp(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
+    }
+
+    @Override
+    public List<RecentMovementResult> getRecentMovements(Integer warehouseId,
+                                                         String search,
+                                                         LocalDate dateFrom,
+                                                         LocalDate dateTo,
+                                                         String type,
+                                                         int page,
+                                                         int size,
+                                                         AuthContext auth) {
+        if (auth == null || auth.companyId() == null) throw new IllegalArgumentException("missing auth/company");
+        int companyId = auth.companyId();
+
+        List<RecentMovementResult> out = new ArrayList<>();
+
+        try {
+            jdbc.execute((Connection con) -> {
+                try (CallableStatement cs = con.prepareCall("{call inventory.usp_Inventory_GetRecentMovements(?,?,?,?,?,?,?,?)}")) {
+                    cs.setInt(1, companyId);
+                    if (warehouseId == null) cs.setNull(2, Types.INTEGER); else cs.setInt(2, warehouseId);
+                    if (search == null || search.isEmpty()) cs.setNull(3, Types.NVARCHAR); else cs.setString(3, search);
+                    if (dateFrom == null) cs.setNull(4, Types.DATE); else cs.setDate(4, Date.valueOf(dateFrom));
+                    if (dateTo == null) cs.setNull(5, Types.DATE); else cs.setDate(5, Date.valueOf(dateTo));
+                    if (type == null || type.isEmpty()) cs.setNull(6, Types.NVARCHAR); else cs.setString(6, type);
+                    cs.setInt(7, Math.max(1, page));
+                    cs.setInt(8, Math.max(1, size));
+
+                    boolean has = cs.execute();
+                    if (has) {
+                        try (ResultSet rs = cs.getResultSet()) {
+                            while (rs.next()) {
+                                RecentMovementResult r = new RecentMovementResult();
+                                r.setTipo(rs.getString("Tipo"));
+                                r.setProducto(rs.getString("Producto"));
+                                r.setCantidad(rs.getBigDecimal("Cantidad"));
+                                Date d = rs.getDate("Fecha");
+                                r.setFecha(d == null ? null : d.toLocalDate());
+                                r.setUsuario(rs.getString("Usuario"));
+                                r.setReferencia(rs.getString("Referencia"));
+                                out.add(r);
+                            }
+                        }
+                    }
+                }
+                return null;
+            });
+        } catch (Exception ex) {
+            // inspect cause chain for SQLException
+            Throwable cause = ex;
+            while (cause != null) {
+                if (cause instanceof SQLException) {
+                    throw DbErrorTranslator.translate((SQLException) cause);
+                }
+                cause = cause.getCause();
+            }
+            if (ex instanceof RuntimeException) throw (RuntimeException) ex;
+            throw new RuntimeException(ex);
+        }
+
+        return out;
     }
 
     @Override
