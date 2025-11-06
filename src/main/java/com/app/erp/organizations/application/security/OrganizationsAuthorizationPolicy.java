@@ -32,7 +32,9 @@ public final class OrganizationsAuthorizationPolicy {
     }
 
     public void assertCanListBranches(AuthContext ctx) {
-        // similar: rbac.hasAnyRole(ctx.rolesCompany(), allowedListBranchRoles)
-        throw new UnsupportedOperationException("Configura cuando lo necesites");
+        // Por defecto permitimos listar si hay contexto y companyId en el token.
+        // Si quieres reglas más estrictas, reemplaza por rbac.hasAnyRole(...) usando roles permitidos.
+        if (ctx == null) throw new AuthorizationException("No autorizado (sin contexto)");
+        if (ctx.companyId() == null) throw new AuthorizationException("No autorizado para listar sucursales (cid ausente)");
     }
 }

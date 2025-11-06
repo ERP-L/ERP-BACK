@@ -1,9 +1,8 @@
 package com.app.erp.inventory.interfaces.rest.resources;
-
-
-import com.app.erp.inventory.application.internal.commandservices.CreateProductService;
-import com.app.erp.inventory.application.internal.messages.commands.CreateProductCommand;
-import com.app.erp.inventory.application.internal.messages.results.CreateProductResult;
+import com.app.erp.inventory.application.usecase.CreateProductHandler;
+import com.app.erp.inventory.application.dtos.commands.CreateProductCommand;
+import com.app.erp.inventory.application.dtos.results.CreateProductResult;
+import com.app.erp.inventory.application.usecase.ListProductsHandler;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateProductRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.ProductResponse;
 import com.app.erp.inventory.interfaces.rest.resources.transformers.ProductApiTransformer;
@@ -19,16 +18,19 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/inventory/products")
 public class ProductsController {
 
-    private final CreateProductService service;
+    private final CreateProductHandler service;
     private final ProductApiTransformer transformer;
     private final AuthContextResolver authResolver;
+    private final ListProductsHandler listService;
 
-    public ProductsController(CreateProductService service,
+    public ProductsController(CreateProductHandler service,
                               ProductApiTransformer transformer,
-                              AuthContextResolver authResolver) {
+                              AuthContextResolver authResolver,
+                              ListProductsHandler listService) {
         this.service = service;
         this.transformer = transformer;
         this.authResolver = authResolver;
+        this.listService = listService;
     }
 
     @PostMapping
@@ -40,5 +42,11 @@ public class ProductsController {
         CreateProductCommand cmd = transformer.toCommand(request);
         CreateProductResult res = service.handle(cmd, auth);
         return transformer.toResponse(res);
+    }
+
+    @GetMapping
+    public java.util.List<ProductResponse> list(Authentication authentication) {
+        AuthContext auth = authResolver.resolve(authentication);
+        return listService.handle(auth);
     }
 }

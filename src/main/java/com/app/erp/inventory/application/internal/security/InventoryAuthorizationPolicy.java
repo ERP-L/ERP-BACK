@@ -1,9 +1,9 @@
 package com.app.erp.inventory.application.internal.security;
 
-import com.app.erp.inventory.application.internal.messages.commands.CreateProductCommand;
-import com.app.erp.inventory.application.internal.messages.commands.CreateWarehouseCommand;
-import com.app.erp.inventory.application.internal.port.InventoryReadPort;
-import com.app.erp.inventory.application.internal.port.OrganizationsReadPort;
+import com.app.erp.inventory.application.dtos.commands.CreateProductCommand;
+import com.app.erp.inventory.application.dtos.commands.CreateWarehouseCommand;
+import com.app.erp.inventory.application.port.InventoryReadPort;
+import com.app.erp.inventory.application.port.OrganizationsReadPort;
 import com.app.erp.shared.exceptions.AuthorizationException;
 import com.app.erp.shared.exceptions.NotFoundException;
 import com.app.erp.shared.security.AuthContext;
@@ -73,6 +73,23 @@ public class InventoryAuthorizationPolicy {
             if (!catCompany.equals(auth.companyId())) {
                 throw new AuthorizationException("CategoryID no pertenece a tu compañía.");
             }
+        }
+    }
+
+    public void checkCreateCategory(com.app.erp.inventory.application.dtos.commands.CreateProductCategoryCommand cmd, AuthContext auth) {
+        // Debe existir compañía en el token
+        if (auth.companyId() == null) throw new com.app.erp.shared.exceptions.AuthorizationException("El token no tiene compañía asociada.");
+
+        // RBAC: reuse create-product roles for now (or configure new property)
+        if (!rbac.hasAnyRole(auth.rolesCompany(), allowedRolesCreateProduct)) {
+            throw new com.app.erp.shared.exceptions.AuthorizationException("No tienes permisos para crear categorías.");
+        }
+
+        // Si viene parentCategoryId, validar pertenencia a la compañía
+        if (cmd.getParentCategoryId() != null) {
+            Integer pc = inventoryReadPort.getCategoryCompanyId(cmd.getParentCategoryId());
+            if (pc == null) throw new com.app.erp.shared.exceptions.NotFoundException("ParentCategoryID no existe.");
+            if (!pc.equals(auth.companyId())) throw new com.app.erp.shared.exceptions.AuthorizationException("ParentCategoryID no pertenece a tu compañía.");
         }
     }
 
