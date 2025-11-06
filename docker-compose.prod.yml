@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  erp-api:
-    image: erp-api:latest
+  erp-backend:
+    image: erp-backend:latest
     container_name: erp-backend-prod
     build:
       context: .
@@ -32,14 +32,7 @@ services:
       FLYWAY_ENABLED: ${FLYWAY_ENABLED:-false}
       
       # Server
-      PORT: ${PORT:-8080}
+      PORT: 8080
       
       # JVM Options
       JAVA_OPTS: ${JAVA_OPTS:--Xmx512m -Xms256m}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
