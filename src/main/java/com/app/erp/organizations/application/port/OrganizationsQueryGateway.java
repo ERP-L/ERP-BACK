@@ -7,4 +7,7 @@ public interface OrganizationsQueryGateway {
 
     /** ¿La compañía está activa para operar? */
     boolean isCompanyActive(int companyId);
+
+    /** Lista branches de una compañía. onlyActive: null = no filtra; true = solo activas; false = solo inactivas */
+    java.util.List<com.app.erp.organizations.domain.Branch> listBranchesByCompany(int companyId, Boolean onlyActive);
 }

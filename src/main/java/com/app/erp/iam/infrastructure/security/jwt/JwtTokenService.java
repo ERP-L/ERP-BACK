@@ -22,7 +22,7 @@ public class JwtTokenService implements TokenService {
     public JwtTokenService(
             @Value("${security.jwt.secret}") String secret,
             @Value("${security.jwt.issuer:iam-service}") String issuer,
-            @Value("${security.jwt.expiration-seconds:1800}") long expirationSeconds
+            @Value("${security.jwt.expiration-seconds:3600}") long expirationSeconds
     ) {
         this.algorithm = Algorithm.HMAC256(secret);
         this.issuer = issuer;

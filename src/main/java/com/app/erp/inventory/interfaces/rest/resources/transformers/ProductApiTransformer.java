@@ -1,7 +1,7 @@
 package com.app.erp.inventory.interfaces.rest.resources.transformers;
 
-import com.app.erp.inventory.application.internal.messages.commands.CreateProductCommand;
-import com.app.erp.inventory.application.internal.messages.results.CreateProductResult;
+import com.app.erp.inventory.application.dtos.commands.CreateProductCommand;
+import com.app.erp.inventory.application.dtos.results.CreateProductResult;
 import com.app.erp.inventory.interfaces.rest.contracts.CreateProductRequest;
 import com.app.erp.inventory.interfaces.rest.contracts.ProductResponse;
 import org.springframework.stereotype.Component;

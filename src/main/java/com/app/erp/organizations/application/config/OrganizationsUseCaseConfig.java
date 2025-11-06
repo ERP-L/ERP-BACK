@@ -2,6 +2,7 @@ package com.app.erp.organizations.application.config;
 
 
 import com.app.erp.organizations.application.usecase.RegisterBranchHandler;
+import com.app.erp.organizations.application.usecase.ListBranchesHandler;
 import com.app.erp.organizations.application.port.CatalogsQueryGateway;
 import com.app.erp.organizations.application.port.OrganizationsCommandGateway;
 import com.app.erp.organizations.application.port.OrganizationsQueryGateway;
@@ -21,5 +22,11 @@ public class OrganizationsUseCaseConfig {
                                                        CatalogsQueryGateway catalogsGateway,
                                                        OrganizationsRulesProperties rules) {
         return new RegisterBranchHandler(authz, commandGateway, queryGateway, catalogsGateway, rules);
+    }
+
+    @Bean
+    public ListBranchesHandler listBranchesHandler(OrganizationsAuthorizationPolicy authz,
+                                                   OrganizationsQueryGateway queryGateway) {
+        return new ListBranchesHandler(authz, queryGateway);
     }
 }
