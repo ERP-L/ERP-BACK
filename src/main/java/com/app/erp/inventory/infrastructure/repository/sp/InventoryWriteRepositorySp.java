@@ -71,7 +71,7 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
                 }
 
                 OffsetDateTime movementDate = command.getMovementDate() != null ? command.getMovementDate() : OffsetDateTime.now();
-                return new PostInventoryMovementResult(movementId, movementDate, command.getReferenceNumber());
+                return new PostInventoryMovementResult(movementId, movementDate, command.getPurchaseOrderId(), command.getTemporalId());
             });
         } catch (DataAccessException ex) {
             Throwable cause = ex.getCause();
@@ -176,38 +176,42 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
 
         String callSql;
         if (isAdj) {
-            callSql = "{call " + sp + "(?,?,?,?,?,?)}"; // 6 params for ADJ (5 inputs + 1 output)
+            callSql = "{call " + sp + "(?,?,?,?,?,?,?)}"; // 7 params for ADJ (6 inputs + 1 output)
         } else {
-            callSql = "{call " + sp + "(?,?,?,?,?,?,?)}"; // 7 params for IN/OUT/TRF
+            callSql = "{call " + sp + "(?,?,?,?,?,?,?,?)}"; // 8 params for IN/OUT/TRF
         }
         try (CallableStatement cs = con.prepareCall(callSql)) {
             int idx = 1;
             if (isIn) {
-                // @ToWarehouseID, @MovementDate, @ReferenceNumber, @CreatedBy, @SupplierID, @Lines, @MovementID OUTPUT
+                // @ToWarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @SupplierID, @Lines, @MovementID OUTPUT
                 if (command.getToWarehouseId() != null) cs.setInt(idx++, command.getToWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                cs.setString(idx++, command.getReferenceNumber());
+                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setString(idx++, createdBy);
                 cs.setNull(idx++, Types.INTEGER);
             } else if (isOut) {
-                // @FromWarehouseID, @MovementDate, @ReferenceNumber, @CreatedBy, @CustomerID, @Lines, @MovementID
+                // @FromWarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @CustomerID, @Lines, @MovementID
                 if (command.getFromWarehouseId() != null) cs.setInt(idx++, command.getFromWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                cs.setString(idx++, command.getReferenceNumber());
+                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setString(idx++, createdBy);
                 cs.setNull(idx++, Types.INTEGER);
             } else if (isTrf) {
-                // @FromWarehouseID, @ToWarehouseID, @MovementDate, @ReferenceNumber, @CreatedBy, @Lines, @MovementID
+                // @FromWarehouseID, @ToWarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @Lines, @MovementID
                 if (command.getFromWarehouseId() != null) cs.setInt(idx++, command.getFromWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 if (command.getToWarehouseId() != null) cs.setInt(idx++, command.getToWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                cs.setString(idx++, command.getReferenceNumber());
+                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setString(idx++, createdBy);
             } else { // ADJ
-                // @WarehouseID, @MovementDate, @ReferenceNumber, @CreatedBy, @Lines, @MovementID
+                // @WarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @Lines, @MovementID
                 if (command.getFromWarehouseId() != null) cs.setInt(idx++, command.getFromWarehouseId()); else if (command.getToWarehouseId() != null) cs.setInt(idx++, command.getToWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                cs.setString(idx++, command.getReferenceNumber());
+                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setString(idx++, createdBy);
             }
 
@@ -229,8 +233,8 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
             default: throw new IllegalArgumentException("unsupported movement type: " + movement);
         }
 
-        // ADJ has 6 params (no supplier/customer); others (IN/OUT/TRF) 7
-    String callSql = "{call " + sp + "(" + ("ADJ".equalsIgnoreCase(movement) ? "?,?,?,?,?,?" : "?,?,?,?,?,?,?") + ")}";
+        // ADJ has 7 params (no supplier/customer); others (IN/OUT/TRF) 8
+    String callSql = "{call " + sp + "(" + ("ADJ".equalsIgnoreCase(movement) ? "?,?,?,?,?,?,?" : "?,?,?,?,?,?,?,?") + ")}";
         try (CallableStatement cs = con.prepareCall(callSql)) {
             int idx = 1;
             if ("IN".equalsIgnoreCase(movement)) {
@@ -245,7 +249,8 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
             }
 
             cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-            cs.setString(idx++, command.getReferenceNumber());
+            if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+            if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
             cs.setString(idx++, createdBy);
             // supplier/customer param only for IN/OUT, but API does not accept them → always NULL
             if ("IN".equalsIgnoreCase(movement) || "OUT".equalsIgnoreCase(movement)) {

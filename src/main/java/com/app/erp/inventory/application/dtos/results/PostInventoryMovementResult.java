@@ -5,15 +5,18 @@ import java.time.OffsetDateTime;
 public class PostInventoryMovementResult {
     private Long movementId;
     private OffsetDateTime movementDate;
-    private String referenceNumber;
+    private Integer purchaseOrderId;
+    private Integer temporalId;
 
-    public PostInventoryMovementResult(Long movementId, OffsetDateTime movementDate, String referenceNumber) {
+    public PostInventoryMovementResult(Long movementId, OffsetDateTime movementDate, Integer purchaseOrderId, Integer temporalId) {
         this.movementId = movementId;
         this.movementDate = movementDate;
-        this.referenceNumber = referenceNumber;
+        this.purchaseOrderId = purchaseOrderId;
+        this.temporalId = temporalId;
     }
 
     public Long getMovementId() { return movementId; }
     public OffsetDateTime getMovementDate() { return movementDate; }
-    public String getReferenceNumber() { return referenceNumber; }
+    public Integer getPurchaseOrderId() { return purchaseOrderId; }
+    public Integer getTemporalId() { return temporalId; }
 }
