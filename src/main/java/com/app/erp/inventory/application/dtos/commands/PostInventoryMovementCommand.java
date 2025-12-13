@@ -8,7 +8,7 @@ public class PostInventoryMovementCommand {
     private String lineMode; // NORMAL | BATCH | SERIAL
     private Integer fromWarehouseId;
     private Integer toWarehouseId;
-    private Integer purchaseOrderId;
+    private Integer invoiceId;
     private Integer temporalId;
     private OffsetDateTime movementDate;
     private List<InventoryLineCommand> lines;
@@ -25,8 +25,8 @@ public class PostInventoryMovementCommand {
     public void setFromWarehouseId(Integer fromWarehouseId) { this.fromWarehouseId = fromWarehouseId; }
     public Integer getToWarehouseId() { return toWarehouseId; }
     public void setToWarehouseId(Integer toWarehouseId) { this.toWarehouseId = toWarehouseId; }
-    public Integer getPurchaseOrderId() { return purchaseOrderId; }
-    public void setPurchaseOrderId(Integer purchaseOrderId) { this.purchaseOrderId = purchaseOrderId; }
+    public Integer getInvoiceId() { return invoiceId; }
+    public void setInvoiceId(Integer invoiceId) { this.invoiceId = invoiceId; }
     public Integer getTemporalId() { return temporalId; }
     public void setTemporalId(Integer temporalId) { this.temporalId = temporalId; }
     public OffsetDateTime getMovementDate() { return movementDate; }

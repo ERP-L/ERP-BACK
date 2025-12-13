@@ -10,6 +10,7 @@ import com.microsoft.sqlserver.jdbc.SQLServerDataTable;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -55,6 +56,11 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
                     resolved.add(copy);
                 }
 
+                // Pre-validation for IN movements with InvoiceID
+                if ("IN".equalsIgnoreCase(command.getMovementType()) && command.getInvoiceId() != null) {
+                    resolved = preValidateInvoice(con, command.getInvoiceId(), resolved);
+                }
+
                 // Build TVP
                 SQLServerDataTable tvp = buildLineTvp(resolved);
 
@@ -62,7 +68,7 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
                 boolean serialMode = "SERIAL".equalsIgnoreCase(command.getLineMode());
                 String movement = command.getMovementType().toUpperCase();
 
-                String createdBy = String.valueOf(authContext != null ? authContext.userId() : 0);
+                int createdBy = authContext != null ? authContext.userId() : 0;
                 long movementId;
                 if (serialMode) {
                     movementId = callWrapperSerial(con, movement, command, tvp, createdBy);
@@ -71,7 +77,7 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
                 }
 
                 OffsetDateTime movementDate = command.getMovementDate() != null ? command.getMovementDate() : OffsetDateTime.now();
-                return new PostInventoryMovementResult(movementId, movementDate, command.getPurchaseOrderId(), command.getTemporalId());
+                return new PostInventoryMovementResult(movementId, movementDate, command.getInvoiceId(), command.getTemporalId());
             });
         } catch (DataAccessException ex) {
             Throwable cause = ex.getCause();
@@ -161,7 +167,7 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
         return tvp;
     }
 
-    private long callWrapperNonSerial(Connection con, String movement, PostInventoryMovementCommand command, SQLServerDataTable tvp, String createdBy) throws SQLException {
+    private long callWrapperNonSerial(Connection con, String movement, PostInventoryMovementCommand command, SQLServerDataTable tvp, int createdBy) throws SQLException {
         String sp;
         boolean isIn = "IN".equalsIgnoreCase(movement) || "OPENING".equalsIgnoreCase(movement);
         boolean isOut = "OUT".equalsIgnoreCase(movement);
@@ -183,36 +189,36 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
         try (CallableStatement cs = con.prepareCall(callSql)) {
             int idx = 1;
             if (isIn) {
-                // @ToWarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @SupplierID, @Lines, @MovementID OUTPUT
+                // SP signature: @ToWarehouseID, @MovementDate, @ReferenceNumber, @CreatedBy, @SupplierID, @InvoiceID, @Lines, @MovementID
                 if (command.getToWarehouseId() != null) cs.setInt(idx++, command.getToWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
-                if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
-                cs.setString(idx++, createdBy);
-                cs.setNull(idx++, Types.INTEGER);
+                cs.setNull(idx++, Types.NVARCHAR); // ReferenceNumber (not used)
+                cs.setInt(idx++, createdBy); // CreatedBy as INT
+                cs.setNull(idx++, Types.INTEGER); // SupplierID (not used)
+                if (command.getInvoiceId() != null) cs.setInt(idx++, command.getInvoiceId()); else cs.setNull(idx++, Types.INTEGER);
             } else if (isOut) {
-                // @FromWarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @CustomerID, @Lines, @MovementID
+                // @FromWarehouseID, @MovementDate, @invoiceID, @TemporalID, @CreatedBy, @CustomerID, @Lines, @MovementID
                 if (command.getFromWarehouseId() != null) cs.setInt(idx++, command.getFromWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getInvoiceId() != null) cs.setInt(idx++, command.getInvoiceId()); else cs.setNull(idx++, Types.INTEGER);
                 if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
-                cs.setString(idx++, createdBy);
+                cs.setInt(idx++, createdBy);
                 cs.setNull(idx++, Types.INTEGER);
             } else if (isTrf) {
-                // @FromWarehouseID, @ToWarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @Lines, @MovementID
+                // @FromWarehouseID, @ToWarehouseID, @MovementDate, @invoiceID, @TemporalID, @CreatedBy, @Lines, @MovementID
                 if (command.getFromWarehouseId() != null) cs.setInt(idx++, command.getFromWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 if (command.getToWarehouseId() != null) cs.setInt(idx++, command.getToWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getInvoiceId() != null) cs.setInt(idx++, command.getInvoiceId()); else cs.setNull(idx++, Types.INTEGER);
                 if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
-                cs.setString(idx++, createdBy);
+                cs.setInt(idx++, createdBy);
             } else { // ADJ
-                // @WarehouseID, @MovementDate, @PurchaseOrderID, @TemporalID, @CreatedBy, @Lines, @MovementID
+                // @WarehouseID, @MovementDate, @invoiceID, @TemporalID, @CreatedBy, @Lines, @MovementID
                 if (command.getFromWarehouseId() != null) cs.setInt(idx++, command.getFromWarehouseId()); else if (command.getToWarehouseId() != null) cs.setInt(idx++, command.getToWarehouseId()); else cs.setNull(idx++, Types.INTEGER);
                 cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-                if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getInvoiceId() != null) cs.setInt(idx++, command.getInvoiceId()); else cs.setNull(idx++, Types.INTEGER);
                 if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
-                cs.setString(idx++, createdBy);
+                cs.setInt(idx++, createdBy);
             }
 
             // set TVP param index depends on above; assume next is TVP
@@ -223,7 +229,7 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
         }
     }
 
-    private long callWrapperSerial(Connection con, String movement, PostInventoryMovementCommand command, SQLServerDataTable tvp, String createdBy) throws SQLException {
+    private long callWrapperSerial(Connection con, String movement, PostInventoryMovementCommand command, SQLServerDataTable tvp, int createdBy) throws SQLException {
         String sp;
         switch (movement) {
             case "IN": sp = "inventory.usp_Inventory_PostIN_Serial"; break;
@@ -249,12 +255,21 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
             }
 
             cs.setTimestamp(idx++, command.getMovementDate() == null ? new Timestamp(System.currentTimeMillis()) : Timestamp.from(command.getMovementDate().toInstant()));
-            if (command.getPurchaseOrderId() != null) cs.setInt(idx++, command.getPurchaseOrderId()); else cs.setNull(idx++, Types.INTEGER);
-            if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
-            cs.setString(idx++, createdBy);
-            // supplier/customer param only for IN/OUT, but API does not accept them → always NULL
-            if ("IN".equalsIgnoreCase(movement) || "OUT".equalsIgnoreCase(movement)) {
-                cs.setNull(idx++, Types.INTEGER);
+            // For IN serial: ReferenceNumber, CreatedBy, SupplierID, InvoiceID
+            if ("IN".equalsIgnoreCase(movement)) {
+                cs.setNull(idx++, Types.NVARCHAR); // ReferenceNumber
+                cs.setInt(idx++, createdBy); // CreatedBy as INT
+                cs.setNull(idx++, Types.INTEGER); // SupplierID
+                if (command.getInvoiceId() != null) cs.setInt(idx++, command.getInvoiceId()); else cs.setNull(idx++, Types.INTEGER);
+            } else {
+                // For other movements keep existing logic
+                if (command.getInvoiceId() != null) cs.setInt(idx++, command.getInvoiceId()); else cs.setNull(idx++, Types.INTEGER);
+                if (command.getTemporalId() != null) cs.setInt(idx++, command.getTemporalId()); else cs.setNull(idx++, Types.INTEGER);
+                cs.setInt(idx++, createdBy);
+                // supplier/customer param only for OUT
+                if ("OUT".equalsIgnoreCase(movement)) {
+                    cs.setNull(idx++, Types.INTEGER);
+                }
             }
             cs.setObject(idx++, tvp);
             cs.registerOutParameter(idx, Types.BIGINT);
@@ -269,5 +284,79 @@ public class InventoryWriteRepositorySp implements InventoryWritePort {
         if ("TRF".equalsIgnoreCase(movementType)) return to;
         // ADJ: choose non-null
         return from != null ? from : to;
+    }
+
+    /**
+     * Pre-validation for IN movements with InvoiceID.
+     * Calls usp_InvoiceItem_GetCantidad to verify the product exists in the invoice
+     * and compares the expected quantity with the movement's total quantity.
+     * Appends a mismatch note if quantities don't match.
+     */
+    private List<InventoryLineCommand> preValidateInvoice(
+            Connection con,
+            Integer invoiceId,
+            List<InventoryLineCommand> lines
+    ) throws SQLException {
+        if (lines.isEmpty()) {
+            return lines;
+        }
+
+        // All lines belong to the same ProductID (confirmed by user)
+        Integer productId = lines.get(0).getProductId();
+
+        // Calculate total quantity: sum of all line quantities
+        BigDecimal totalQuantity = BigDecimal.ZERO;
+        for (InventoryLineCommand line : lines) {
+            BigDecimal lineQty = line.getQuantity() != null ? line.getQuantity() : BigDecimal.ONE;
+            totalQuantity = totalQuantity.add(lineQty);
+        }
+
+        // Call SP to get expected quantity from Invoice
+        BigDecimal expectedCantidad = callGetInvoiceItemCantidad(con, invoiceId, productId);
+
+        // Check for mismatch
+        boolean mismatch = totalQuantity.compareTo(expectedCantidad) != 0;
+
+        // If mismatch, append note to all lines
+        if (mismatch) {
+            String mismatchMessage = "Este movimiento no coincide totalmente con lo declarado en la factura.";
+            List<InventoryLineCommand> updatedLines = new ArrayList<>();
+            for (InventoryLineCommand line : lines) {
+                String currentNotes = line.getNotes();
+                if (currentNotes != null && !currentNotes.trim().isEmpty()) {
+                    line.setNotes(currentNotes + " | " + mismatchMessage);
+                } else {
+                    line.setNotes(mismatchMessage);
+                }
+                updatedLines.add(line);
+            }
+            return updatedLines;
+        }
+
+        return lines;
+    }
+
+    /**
+     * Calls finance.usp_InvoiceItem_GetCantidad.
+     * Returns the expected Cantidad for the product in the invoice.
+     * Throws SQLException if the product is not found in the invoice.
+     */
+    private BigDecimal callGetInvoiceItemCantidad(
+            Connection con,
+            Integer invoiceId,
+            Integer productId
+    ) throws SQLException {
+        try (CallableStatement cs = con.prepareCall("{call finance.usp_InvoiceItem_GetCantidad(?,?)}")) {
+            cs.setInt(1, invoiceId);
+            cs.setInt(2, productId);
+
+            try (ResultSet rs = cs.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBigDecimal("Cantidad");
+                } else {
+                    throw new SQLException("El producto no existe en la factura especificada");
+                }
+            }
+        }
     }
 }
