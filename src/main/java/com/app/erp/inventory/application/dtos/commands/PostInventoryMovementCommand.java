@@ -8,7 +8,8 @@ public class PostInventoryMovementCommand {
     private String lineMode; // NORMAL | BATCH | SERIAL
     private Integer fromWarehouseId;
     private Integer toWarehouseId;
-    private String referenceNumber;
+    private Integer invoiceId;
+    private Integer temporalId;
     private OffsetDateTime movementDate;
     private List<InventoryLineCommand> lines;
     // options
@@ -24,8 +25,10 @@ public class PostInventoryMovementCommand {
     public void setFromWarehouseId(Integer fromWarehouseId) { this.fromWarehouseId = fromWarehouseId; }
     public Integer getToWarehouseId() { return toWarehouseId; }
     public void setToWarehouseId(Integer toWarehouseId) { this.toWarehouseId = toWarehouseId; }
-    public String getReferenceNumber() { return referenceNumber; }
-    public void setReferenceNumber(String referenceNumber) { this.referenceNumber = referenceNumber; }
+    public Integer getInvoiceId() { return invoiceId; }
+    public void setInvoiceId(Integer invoiceId) { this.invoiceId = invoiceId; }
+    public Integer getTemporalId() { return temporalId; }
+    public void setTemporalId(Integer temporalId) { this.temporalId = temporalId; }
     public OffsetDateTime getMovementDate() { return movementDate; }
     public void setMovementDate(OffsetDateTime movementDate) { this.movementDate = movementDate; }
     // createdBy and supplier/customer are intentionally omitted: createdBy comes from JWT; supplier/customer not accepted by API
